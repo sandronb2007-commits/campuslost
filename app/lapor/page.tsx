@@ -11,21 +11,52 @@ export default function LaporPage() {
   const [lokasi, setLokasi] = useState('')
   const [kategori, setKategori] = useState('elektronik')
   const [kontakWa, setKontakWa] = useState('')
+  const [foto, setFoto] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
-  const supabase = createClient()
+
+  function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) {
+      setFoto(file)
+      setPreview(URL.createObjectURL(file))
+    }
+  }
 
   async function handleSubmit() {
     setLoading(true)
     setMessage('')
 
+    const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
       setMessage('❌ Kamu harus login dulu!')
       setLoading(false)
       return
+    }
+
+    let fotoUrl = null
+
+    if (foto) {
+      const fileName = `${user.id}-${Date.now()}-${foto.name}`
+      const { error: uploadError } = await supabase.storage
+        .from('foto-laporan')
+        .upload(fileName, foto)
+
+      if (uploadError) {
+        setMessage('❌ Gagal upload foto: ' + uploadError.message)
+        setLoading(false)
+        return
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('foto-laporan')
+        .getPublicUrl(fileName)
+
+      fotoUrl = urlData.publicUrl
     }
 
     const { error } = await supabase.from('laporan').insert({
@@ -36,6 +67,7 @@ export default function LaporPage() {
       lokasi,
       kategori,
       kontak_wa: kontakWa,
+      foto_url: fotoUrl,
       status: 'aktif'
     })
 
@@ -52,10 +84,9 @@ export default function LaporPage() {
     <main className="min-h-screen bg-blue-50 py-10 px-4">
       <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-md p-8">
         <h1 className="text-2xl font-bold text-blue-700 mb-6 text-center">
-          📋 Buat Laporan
+          Buat Laporan
         </h1>
 
-        {/* Jenis Laporan */}
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           Jenis Laporan
         </label>
@@ -68,7 +99,7 @@ export default function LaporPage() {
                 : 'bg-white text-red-500 border-red-300'
             }`}
           >
-            🔴 Barang Hilang
+            Barang Hilang
           </button>
           <button
             onClick={() => setJenis('temuan')}
@@ -78,14 +109,11 @@ export default function LaporPage() {
                 : 'bg-white text-green-500 border-green-300'
             }`}
           >
-            🟢 Barang Temuan
+            Barang Temuan
           </button>
         </div>
 
-        {/* Judul */}
-        <label className="block text-sm font-semibold text-gray-700 mb-1">
-          Judul
-        </label>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">Judul</label>
         <input
           type="text"
           placeholder="Contoh: Dompet hitam hilang di kantin"
@@ -94,39 +122,30 @@ export default function LaporPage() {
           className="w-full border rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
 
-        {/* Kategori */}
-        <label className="block text-sm font-semibold text-gray-700 mb-1">
-          Kategori
-        </label>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">Kategori</label>
         <select
           value={kategori}
           onChange={(e) => setKategori(e.target.value)}
           className="w-full border rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
-          <option value="elektronik">📱 Elektronik</option>
-          <option value="dompet">👛 Dompet / Uang</option>
-          <option value="kartu">🪪 Kartu / Identitas</option>
-          <option value="tas">🎒 Tas</option>
-          <option value="kunci">🔑 Kunci</option>
-          <option value="lainnya">📦 Lainnya</option>
+          <option value="elektronik">Elektronik</option>
+          <option value="dompet">Dompet / Uang</option>
+          <option value="kartu">Kartu / Identitas</option>
+          <option value="tas">Tas</option>
+          <option value="kunci">Kunci</option>
+          <option value="lainnya">Lainnya</option>
         </select>
 
-        {/* Lokasi */}
-        <label className="block text-sm font-semibold text-gray-700 mb-1">
-          Lokasi
-        </label>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">Lokasi</label>
         <input
           type="text"
-          placeholder="Contoh: Kantin gedung A, Perpustakaan lt.2"
+          placeholder="Contoh: Kantin gedung A"
           value={lokasi}
           onChange={(e) => setLokasi(e.target.value)}
           className="w-full border rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
 
-        {/* Deskripsi */}
-        <label className="block text-sm font-semibold text-gray-700 mb-1">
-          Deskripsi
-        </label>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">Deskripsi</label>
         <textarea
           placeholder="Jelaskan ciri-ciri barang secara detail..."
           value={deskripsi}
@@ -135,24 +154,42 @@ export default function LaporPage() {
           className="w-full border rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
 
-        {/* Kontak WA */}
-        <label className="block text-sm font-semibold text-gray-700 mb-1">
-          Nomor WhatsApp
-        </label>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">Nomor WhatsApp</label>
         <input
           type="text"
           placeholder="Contoh: 08123456789"
           value={kontakWa}
           onChange={(e) => setKontakWa(e.target.value)}
-          className="w-full border rounded-lg px-4 py-2 mb-6 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full border rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
+
+        <label className="block text-sm font-semibold text-gray-700 mb-1">
+          Foto Barang (opsional)
+        </label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFotoChange}
+          className="w-full border rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+        />
+
+        {preview && (
+          <div className="mb-4">
+            <p className="text-sm text-gray-500 mb-2">Preview foto:</p>
+            <img
+              src={preview}
+              alt="preview"
+              className="w-full max-h-48 object-cover rounded-lg border"
+            />
+          </div>
+        )}
 
         <button
           onClick={handleSubmit}
           disabled={loading}
           className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
         >
-          {loading ? 'Menyimpan...' : '📤 Kirim Laporan'}
+          {loading ? 'Menyimpan...' : 'Kirim Laporan'}
         </button>
 
         {message && (

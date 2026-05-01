@@ -148,6 +148,13 @@ export default function Home() {
                     {item.jenis === 'hilang' ? 'Hilang' : 'Temuan'}
                   </span>
                 </div>
+                {item.foto_url && (
+                <img
+                  src={item.foto_url}
+                  alt={item.judul}
+                  className="w-full max-h-40 object-cover object-center rounded-lg mb-3 max-w-sm mx-auto block"
+                />
+                )}
                 <p className="text-gray-500 text-sm mb-3">{item.deskripsi}</p>
                 <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-4">
                   <span>{item.lokasi}</span>
