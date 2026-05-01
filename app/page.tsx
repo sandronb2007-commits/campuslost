@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from './utils/supabase'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 type Laporan = {
   id: string
@@ -22,10 +23,26 @@ export default function Home() {
   const [filterKategori, setFilterKategori] = useState('semua')
   const [filterJenis, setFilterJenis] = useState('semua')
   const [loading, setLoading] = useState(true)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
     fetchLaporan()
+    checkUser()
   }, [])
+
+  async function checkUser() {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) setUserEmail(user.email ?? null)
+  }
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    setUserEmail(null)
+    router.refresh()
+  }
 
   async function fetchLaporan() {
     const supabase = createClient()
@@ -48,13 +65,32 @@ export default function Home() {
     <main className="min-h-screen bg-blue-50">
       <nav className="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
         <h1 className="text-xl font-bold text-blue-700">CampusLost</h1>
-        <div className="flex gap-3">
-          <Link href="/login" className="text-sm text-gray-600 hover:text-blue-600 font-medium">
-            Login
-          </Link>
-          <Link href="/lapor" className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">
-            + Buat Laporan
-          </Link>
+        <div className="flex gap-3 items-center">
+          {userEmail ? (
+            <>
+              <Link href="/profil" className="text-sm text-gray-600 hover:text-blue-600 font-medium">
+                👤 {userEmail}
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="text-sm bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 font-medium"
+              >
+                Logout
+              </button>
+              <Link href="/lapor" className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">
+                + Buat Laporan
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="text-sm text-gray-600 hover:text-blue-600 font-medium">
+                Login
+              </Link>
+              <Link href="/lapor" className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">
+                + Buat Laporan
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
